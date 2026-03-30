@@ -21,15 +21,18 @@ if _raw_origins:
 else:
     _allowed_origins = ["*"]
     _allow_credentials = False
-
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=_allowed_origins,
-    allow_credentials=_allow_credentials,
-    allow_methods=["*"],
+    allow_origins=[
+        "https://nama-japam-chanting-app.netlify.app",
+        "http://localhost:*",
+        "http://127.0.0.1:*",
+        "*"
+    ],
+    allow_credentials=False,
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
     allow_headers=["*"],
 )
-
 # ------------------- ✅ Firebase Setup -------------------
 if not firebase_admin._apps:
     cred = credentials.Certificate({
