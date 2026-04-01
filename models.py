@@ -17,6 +17,7 @@ class User(Base):
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
     is_active = Column(Boolean, default=True)
     fcm_token = Column(String, nullable=True)
+    password = Column(String, nullable=True) # Hashed password
 
     groups_created = relationship("Group", back_populates="creator")
     memberships = relationship("UserGroup", back_populates="user")

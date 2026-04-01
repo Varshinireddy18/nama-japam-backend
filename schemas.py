@@ -11,6 +11,17 @@ class UserBase(BaseModel):
 class UserCreate(UserBase):
     pass
 
+class UserSignup(BaseModel):
+    name: str
+    phone: str
+    password: str
+    fcm_token: Optional[str] = None
+
+class UserLogin(BaseModel):
+    phone: str
+    password: str
+    fcm_token: Optional[str] = None
+
 class UserRegister(BaseModel):
     name: str
 

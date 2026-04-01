@@ -8,10 +8,14 @@ import database
 from utils import otp
 from utils import jwt
 from jose import JWTError, jwt as jose_jwt
+import hashlib
+
+def hash_password(password: str) -> str:
+    return hashlib.sha256(password.encode()).hexdigest()
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="auth/verify-otp")
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="auth/login")
 
 def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(database.get_db)):
     credentials_exception = HTTPException(
@@ -106,8 +110,57 @@ def verify_otp(data: schemas.OTPVerify, db: Session = Depends(database.get_db)):
         "user": user
     }
 
-@router.post("/register", response_model=schemas.User)
-def register_user(data: schemas.UserRegister, db: Session = Depends(database.get_db), current_user: models.User = Depends(get_current_user)):
+@router.post("/register", response_model=schemas.Token)
+def register_user(data: schemas.UserSignup, db: Session = Depends(database.get_db)):
+    # Check if user exists
+    user = db.query(models.User).filter(models.User.phone == data.phone).first()
+    if user:
+        raise HTTPException(status_code=400, detail="Phone number already registered")
+    
+    # Create new user
+    new_user = models.User(
+        name=data.name,
+        phone=data.phone,
+        password=hash_password(data.password),
+        fcm_token=data.fcm_token
+    )
+    db.add(new_user)
+    db.commit()
+    db.refresh(new_user)
+    
+    access_token = jwt.create_access_token(data={"sub": new_user.phone})
+    return {
+        "access_token": access_token,
+        "token_type": "bearer",
+        "is_new_user": True,
+        "user": new_user
+    }
+
+@router.post("/login", response_model=schemas.Token)
+def login_user(data: schemas.UserLogin, db: Session = Depends(database.get_db)):
+    user = db.query(models.User).filter(models.User.phone == data.phone).first()
+    if not user:
+        raise HTTPException(status_code=401, detail="Invalid phone or password")
+    
+    if user.password != hash_password(data.password):
+        raise HTTPException(status_code=401, detail="Invalid phone or password")
+    
+    # Update FCM token if provided
+    if data.fcm_token:
+        user.fcm_token = data.fcm_token
+        db.commit()
+        db.refresh(user)
+    
+    access_token = jwt.create_access_token(data={"sub": user.phone})
+    return {
+        "access_token": access_token,
+        "token_type": "bearer",
+        "is_new_user": False,
+        "user": user
+    }
+
+@router.post("/update-name", response_model=schemas.User)
+def update_name(data: schemas.UserRegister, db: Session = Depends(database.get_db), current_user: models.User = Depends(get_current_user)):
     current_user.name = data.name
     db.commit()
     db.refresh(current_user)
